@@ -94,7 +94,7 @@ public sealed class FrameOverlay : IDisposable
         if (!string.IsNullOrWhiteSpace(options.WatermarkText))
         {
             float size = Math.Max(12f, height * 0.032f);
-            using var format = _dwrite.CreateTextFormat("Malgun Gothic", FontWeight.SemiBold, Vortice.DirectWrite.FontStyle.Normal, size);
+            using var format = _dwrite!.CreateTextFormat("Malgun Gothic", FontWeight.SemiBold, Vortice.DirectWrite.FontStyle.Normal, size);
             _watermark = _dwrite.CreateTextLayout(options.WatermarkText!.Trim(), format, width * 0.9f, height * 0.5f);
         }
     }

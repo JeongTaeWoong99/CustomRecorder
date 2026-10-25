@@ -43,7 +43,11 @@ public sealed class WebcamSource : IDisposable
             attrs.Set(SourceType, SourceTypeVidcap).CheckError();
             foreach (var a in MediaFactory.MFEnumDeviceSources(attrs))
             {
-                using (a) list.Add(new WebcamDevice(a.GetAllocatedString(SymbolicLink), a.GetAllocatedString(FriendlyName)));
+                using (a)
+                {
+                    var id = a.GetAllocatedString(SymbolicLink);
+                    if (!string.IsNullOrEmpty(id)) list.Add(new WebcamDevice(id, a.GetAllocatedString(FriendlyName) ?? "웹캠"));
+                }
             }
         }
         catch (Exception ex) { Log.Warn($"웹캠 목록 조회 실패: {ex.Message}"); }
@@ -64,7 +68,7 @@ public sealed class WebcamSource : IDisposable
         }
         if (chosen == null) throw new InvalidOperationException("웹캠을 찾을 수 없습니다.");
 
-        string name = chosen.GetAllocatedString(FriendlyName);
+        string name = chosen.GetAllocatedString(FriendlyName) ?? "웹캠";
         _source = chosen.ActivateObject<IMFMediaSource>();
         chosen.Dispose();
 
