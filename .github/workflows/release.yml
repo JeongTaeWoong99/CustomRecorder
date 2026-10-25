@@ -1,0 +1,83 @@
+# Push a tag like v0.1.0 → test, build a self-contained exe, publish a GitHub Release
+# (CustomRecorder-v0.1.0-win-x64.zip + .sha256). The program's update check reads these releases.
+# A tag with a suffix (v0.2.0-beta.1) becomes a pre-release (offered only to "미리보기 버전도 받기").
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Version from tag
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $ver = $tag.TrimStart('v')
+          $core = ($ver -split '[-+]')[0]
+          $csproj = (Select-Xml -Path src/CustomRecorder.App/CustomRecorder.App.csproj -XPath '//Version').Node.InnerText
+          if ($csproj -ne $core) {
+            Write-Error "Tag $tag does not match <Version>$csproj</Version> in CustomRecorder.App.csproj. Set it to $core and tag again."
+            exit 1
+          }
+          "version=$ver" >> $env:GITHUB_OUTPUT
+          "prerelease=$(if ($ver -match '-') { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test tests/CustomRecorder.Tests/CustomRecorder.Tests.csproj -c Release -p:Platform=x64
+
+      - name: Publish (self-contained single exe)
+        run: >
+          dotnet publish src/CustomRecorder.App/CustomRecorder.App.csproj -c Release -p:Platform=x64
+          -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=None
+          -p:Version=${{ steps.ver.outputs.version }} -o publish
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = 'CustomRecorder-${{ github.ref_name }}-win-x64'
+          New-Item -ItemType Directory out | Out-Null
+          Compress-Archive -Path publish/CustomRecorder.exe, LICENSE -DestinationPath "out/$name.zip"
+          $hash = (Get-FileHash "out/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File -Encoding ascii "out/$name.zip.sha256"
+          Get-ChildItem out | Format-Table Name, Length
+
+      - name: Release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $v = [regex]::Escape('${{ steps.ver.outputs.version }}')
+          $lines = @(Get-Content CHANGELOG.md -Encoding utf8)
+          $notes = @()
+          $in = $false
+          foreach ($l in $lines) {
+            if ($l -match "^## ") {
+              if ($in) { break }
+              if ($l -match "^## \[?v?$v\]?") { $in = $true; continue }
+            }
+            elseif ($in) { $notes += $l }
+          }
+          $text = ($notes -join "`n").Trim()
+          if (-not $text) { $text = 'CHANGELOG.md를 참고하세요.' }
+          $text | Out-File notes.md -Encoding utf8
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $flags = @()
+          if ('${{ steps.ver.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
+          gh release create '${{ github.ref_name }}' (Get-ChildItem out).FullName --title 'CustomRecorder ${{ github.ref_name }}' --notes-file notes.md @flags

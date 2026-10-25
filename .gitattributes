@@ -1,0 +1,7 @@
+# Normalise line endings in the repository (LF), check out as the platform prefers.
+* text=auto
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sln text eol=crlf
+*.ico binary
+*.png binary

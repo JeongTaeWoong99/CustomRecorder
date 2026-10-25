@@ -1,0 +1,21 @@
+# build output
+bin/
+obj/
+publish/
+dist/
+/CustomRecorder.exe
+/CustomRecorder.old.exe
+build.log
+*.log
+logs/
+TestResults/
+
+# local dev helpers
+.tooling/
+
+# editors
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
