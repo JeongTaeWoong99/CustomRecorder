@@ -143,6 +143,10 @@
                                       Description="컴퓨터를 켤 때 알림 영역에 조용히 실행해 둡니다. 리플레이 버퍼나 단축키를 늘 쓰신다면 켜 두세요.">
                             <CheckBox x:Name="AutostartCheck" Style="{StaticResource Switch}"/>
                         </c:SettingRow>
+                        <c:SettingRow Icon="&#xE7B3;" Title="녹화 영상에 툴바가 찍히지 않게 하기"
+                                      Description="녹화·리플레이·캡처하는 동안 이 프로그램의 창을 영상에서 빼냅니다. 그동안은 원격 데스크톱·화면 공유에서도 창이 안 보이거나 검게 보입니다. 원격으로 녹화를 조작하거나 툴바까지 찍고 싶으면 끄세요.">
+                            <CheckBox x:Name="HideFromCaptureCheck" Style="{StaticResource Switch}"/>
+                        </c:SettingRow>
                         <c:SettingRow Icon="&#xED1A;" Title="녹화하는 동안 툴바 숨기기"
                                       Description="녹화를 시작하면 툴바를 알림 영역으로 내리고, 끝나면 다시 보여줍니다. 녹화 중에는 알림 영역 아이콘에 빨간 점이 붙고, 녹화 단축키나 아이콘 메뉴로 멈출 수 있습니다.">
                             <CheckBox x:Name="HideWhileRecordingCheck" Style="{StaticResource Switch}"/>

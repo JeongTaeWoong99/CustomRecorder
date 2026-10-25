@@ -75,6 +75,7 @@ public partial class SettingsWindow : Window
         TrayCheck.IsChecked = settings.MinimizeToTray;
         AutostartCheck.IsChecked = Autostart.IsEnabled;
         HideWhileRecordingCheck.IsChecked = settings.HideWhileRecording;
+        HideFromCaptureCheck.IsChecked = settings.HideToolbarFromCapture;
         QuickButtonsCheck.IsChecked = settings.QuickButtons;
         QuickPlaceCombo.Items.Add("작업 표시줄 (알림 영역 왼쪽)");
         QuickPlaceCombo.Items.Add("알림 영역 아이콘");
@@ -289,6 +290,7 @@ public partial class SettingsWindow : Window
         Settings.AfterRecording = Afters[Math.Max(0, AfterCombo.SelectedIndex)].Value;
         Settings.MinimizeToTray = TrayCheck.IsChecked == true;
         Settings.HideWhileRecording = HideWhileRecordingCheck.IsChecked == true;
+        Settings.HideToolbarFromCapture = HideFromCaptureCheck.IsChecked == true;
         Settings.QuickButtons = QuickButtonsCheck.IsChecked == true;
         Settings.QuickButtonsPlace = QuickPlaceCombo.SelectedIndex == 1 ? "tray" : "taskbar";
         bool autostart = AutostartCheck.IsChecked == true;

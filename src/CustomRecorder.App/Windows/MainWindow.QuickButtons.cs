@@ -68,8 +68,12 @@ public partial class MainWindow
         UpdateQuickButtons();
     }
 
+    /// <summary>Own windows are hidden from capture only while something is being recorded (see CaptureExclusion).</summary>
+    private void UpdateCaptureExclusion() => CaptureExclusion.SetBusy(_recorder != null || _replay != null || _countingDown);
+
     private void UpdateQuickButtons()
     {
+        UpdateCaptureExclusion();
         bool recording = _recorder != null, replay = _replay != null;
         var length = FormatSeconds(_settings.ReplaySeconds);
         _quick?.SetRecording(recording);

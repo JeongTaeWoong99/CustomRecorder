@@ -58,6 +58,7 @@ public partial class MainWindow
         if (_settings.CountdownSeconds <= 0) return true;
         _countingDown = true;
         _cancelCountdown = false;
+        UpdateCaptureExclusion();
         StatusText.Text = $"{_settings.CountdownSeconds}초 후 녹화 시작 — {_settings.HotkeyRecord}로 취소";
         try
         {
@@ -68,6 +69,7 @@ public partial class MainWindow
         finally
         {
             _countingDown = false;
+            UpdateCaptureExclusion();
         }
     }
 
@@ -104,6 +106,9 @@ public partial class MainWindow
             MessageBox.Show($"녹화가 중지되었습니다.\n{reason}", "CustomRecorder", MessageBoxButton.OK, MessageBoxImage.Warning);
         });
 
+        // Hide our own windows before the first frame is captured.
+        CaptureExclusion.SetBusy(true);
+        await Task.Delay(50);
         try
         {
             recorder.Start();
@@ -112,6 +117,7 @@ public partial class MainWindow
         {
             Log.Error("녹화 시작 실패", ex);
             recorder.Dispose();
+            UpdateCaptureExclusion();
             MessageBox.Show($"녹화를 시작하지 못했습니다.\n{ex.Message}", "CustomRecorder", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }

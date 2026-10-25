@@ -68,6 +68,7 @@ public partial class MainWindow : Window
 
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
+        CaptureExclusion.HideFromRecordings = _settings.HideToolbarFromCapture;
         // Never record our own toolbar.
         CaptureExclusion.Apply(Hwnd);
 
@@ -186,7 +187,12 @@ public partial class MainWindow : Window
 
         try
         {
-            var img = await Screenshot.CaptureAsync(_d3d, target, _settings.CaptureCursor);
+            CapturedImage img;
+            using (CaptureExclusion.HideTemporarily())
+            {
+                await Task.Delay(60); // let the window manager apply it before the frame is taken
+                img = await Screenshot.CaptureAsync(_d3d, target, _settings.CaptureCursor);
+            }
             var bmp = BitmapSource.Create(img.Width, img.Height, 96, 96, PixelFormats.Bgra32, null, img.Pixels, img.Stride);
             bmp.Freeze();
 
@@ -238,6 +244,8 @@ public partial class MainWindow : Window
             {
                 _settings = dlg.Settings;
                 _settings.Save();
+                CaptureExclusion.HideFromRecordings = _settings.HideToolbarFromCapture;
+                CaptureExclusion.Refresh();
                 ApplyQuickButtons();
                 UpdateTargetUi();
                 pendingUpdate = dlg.PendingUpdateExe;

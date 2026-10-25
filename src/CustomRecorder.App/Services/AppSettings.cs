@@ -90,6 +90,8 @@ public sealed class AppSettings
     public bool AlwaysOnTop { get; set; } = true;
     /// <summary>Hide the toolbar while recording (the tray icon shows the recording state).</summary>
     public bool HideWhileRecording { get; set; }
+    /// <summary>Keep the toolbar and other own windows out of recordings and screenshots.</summary>
+    public bool HideToolbarFromCapture { get; set; } = true;
     /// <summary>Separate one-click record / capture / replay icons in the notification area.</summary>
     public bool QuickButtons { get; set; } = true;
     /// <summary>"taskbar" = buttons on the taskbar left of the tray; "tray" = notification-area icons.</summary>

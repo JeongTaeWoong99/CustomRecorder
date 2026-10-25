@@ -44,6 +44,7 @@ public partial class MainWindow
             StopReplay();
             MessageBox.Show($"리플레이 버퍼가 꺼졌습니다.\n{reason}", "CustomRecorder", MessageBoxButton.OK, MessageBoxImage.Warning);
         });
+        CaptureExclusion.SetBusy(true);
         try
         {
             replay.Start();
@@ -52,6 +53,7 @@ public partial class MainWindow
         {
             Log.Error("리플레이 시작 실패", ex);
             replay.Dispose();
+            UpdateCaptureExclusion();
             MessageBox.Show($"리플레이 버퍼를 켜지 못했습니다.\n{ex.Message}", "CustomRecorder", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
