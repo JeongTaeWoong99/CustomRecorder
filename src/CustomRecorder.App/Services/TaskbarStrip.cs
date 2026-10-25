@@ -114,7 +114,10 @@ public sealed class TaskbarStrip : IDisposable
         int width = _window.Width, height = _window.Height;
         int margin = _window.Scale(4);
         var notify = FindWindowEx(taskbar, IntPtr.Zero, "TrayNotifyWnd", null);
-        int right = notify != IntPtr.Zero && GetWindowRect(notify, out var nr) && nr.Left > tb.Left ? nr.Left : tb.Right - _window.Scale(160);
+        int notifyLeft = notify != IntPtr.Zero && GetWindowRect(notify, out var nr) && nr.Left > tb.Left ? nr.Left : int.MaxValue;
+        ProbeTaskbar(taskbar, notifyLeft, tb, _window.Scale(24));
+        int right = Math.Min(notifyLeft, _trayLeft);
+        if (right == int.MaxValue) right = tb.Right - _window.Scale(160);
 
         // Step left of other programs' widgets docked in the same spot (e.g. a network/CPU monitor).
         GetWindowThreadProcessId(taskbar, out uint explorerPid);
@@ -135,13 +138,13 @@ public sealed class TaskbarStrip : IDisposable
             if (!moved) break;
         }
 
-        // Keep clear of the app buttons (Windows 11 draws them without separate windows: ask UI Automation).
-        ProbeAppButtons(taskbar, right);
+        // Keep clear of the app buttons.
         int appsRight = _appsRight;
         int leftLimit = appsRight == int.MinValue ? tb.Left : appsRight + _window.Scale(2);
         int available = right - margin - leftLimit;
         bool compact = available < _window.FullWidth; // no room for the elapsed time: icons only
         if (compact != _window.Compact) { _window.Compact = compact; _window.Render(); width = _window.Width; }
+        SetRoom(available >= width);
         if (available < width)
         {
             _window.Hide();
@@ -164,12 +167,16 @@ public sealed class TaskbarStrip : IDisposable
     }
 
     private volatile int _appsRight = int.MinValue;
+    private volatile int _trayLeft = int.MaxValue;
     private int _probing;
     private long _lastProbeTicks;
-    private bool _probeFailedLogged;
+    private bool _probeFailedLogged, _probeDumped;
 
-    /// <summary>Finds the right edge of the taskbar's app buttons in the background (UI Automation can take ~100 ms).</summary>
-    private void ProbeAppButtons(IntPtr taskbar, int limit)
+    /// <summary>
+    /// Reads the taskbar's buttons with UI Automation in the background (~100 ms): where the app buttons end and where
+    /// the tray really starts (Windows 11 draws both without separate windows).
+    /// </summary>
+    private void ProbeTaskbar(IntPtr taskbar, int notifyLeft, RECT tb, int packedGap)
     {
         if (Environment.TickCount64 - Interlocked.Read(ref _lastProbeTicks) < 1500) return;
         if (Interlocked.Exchange(ref _probing, 1) == 1) return;
@@ -178,22 +185,32 @@ public sealed class TaskbarStrip : IDisposable
             try
             {
                 var root = System.Windows.Automation.AutomationElement.FromHandle(taskbar);
-                var buttons = root.FindAll(System.Windows.Automation.TreeScope.Descendants,
+                var found = root.FindAll(System.Windows.Automation.TreeScope.Descendants,
                     new System.Windows.Automation.PropertyCondition(System.Windows.Automation.AutomationElement.ControlTypeProperty,
                         System.Windows.Automation.ControlType.Button));
-                int max = int.MinValue;
-                foreach (System.Windows.Automation.AutomationElement b in buttons)
+                var buttons = new List<TaskbarButton>();
+                int midY = (tb.Top + tb.Bottom) / 2;
+                foreach (System.Windows.Automation.AutomationElement b in found)
                 {
-                    System.Windows.Rect r;
-                    try { r = b.Current.BoundingRectangle; } catch { continue; }
-                    if (r.IsEmpty || r.Width <= 0 || r.Left >= limit) continue; // tray icons and anything right of our spot
-                    max = Math.Max(max, (int)Math.Ceiling(r.Right));
+                    System.Windows.Rect r; string cls;
+                    try { r = b.Current.BoundingRectangle; cls = b.Current.ClassName ?? ""; } catch { continue; }
+                    if (r.IsEmpty || r.Width <= 0 || r.Top > midY || r.Bottom < midY) continue; // off-screen / hidden
+                    buttons.Add(new TaskbarButton((int)Math.Floor(r.Left), (int)Math.Ceiling(r.Right), cls));
                 }
-                _appsRight = max;
+                var (apps, tray) = TaskbarLayout.Analyze(buttons, notifyLeft, packedGap);
+                _appsRight = apps;
+                _trayLeft = tray;
+                if (!_probeDumped)
+                {
+                    // One line per run for diagnosing layouts on other PCs (positions and class names only).
+                    _probeDumped = true;
+                    Log.Info($"작업 표시줄 분석: 앱 버튼 끝={apps}, 알림 영역 시작={tray} (TrayNotifyWnd={notifyLeft}) · 버튼 " +
+                             string.Join(", ", buttons.OrderBy(b => b.Left).Select(b => $"{b.Left}-{b.Right}:{b.ClassName}")));
+                }
             }
             catch (Exception ex)
             {
-                if (!_probeFailedLogged) { _probeFailedLogged = true; Log.Warn($"작업 표시줄 앱 버튼 위치를 읽지 못함: {ex.Message}"); }
+                if (!_probeFailedLogged) { _probeFailedLogged = true; Log.Warn($"작업 표시줄 버튼 위치를 읽지 못함: {ex.Message}"); }
             }
             finally
             {
@@ -201,6 +218,24 @@ public sealed class TaskbarStrip : IDisposable
                 Interlocked.Exchange(ref _probing, 0);
             }
         });
+    }
+
+    /// <summary>
+    /// Raised on the UI thread when the strip stops fitting on the taskbar (true = no room) or fits again.
+    /// Debounced, so a moment of taskbar animation does not flip it.
+    /// </summary>
+    public event Action<bool>? NoRoomChanged;
+    private bool _noRoom;
+    private int _roomVotes;
+
+    private void SetRoom(bool fits)
+    {
+        bool noRoom = !fits;
+        if (noRoom == _noRoom) { _roomVotes = 0; return; }
+        if (++_roomVotes < 4) return; // ~2 s
+        _roomVotes = 0;
+        _noRoom = noRoom;
+        _toUi(() => NoRoomChanged?.Invoke(noRoom));
     }
 
     // ---------------------------------------------------------------- actions

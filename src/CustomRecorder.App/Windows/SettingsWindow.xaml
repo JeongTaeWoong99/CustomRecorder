@@ -132,7 +132,7 @@
                             <ComboBox x:Name="AfterCombo"/>
                         </c:SettingRow>
                         <c:SettingRow Icon="&#xE75B;" Title="작업 표시줄 빠른 버튼"
-                                      Description="녹화·캡처·리플레이 버튼을 작업 표시줄에 둡니다. 한 번 클릭으로 바로 실행되고, 리플레이 버튼은 꺼져 있으면 켜고 켜져 있으면 저장합니다. 오른쪽 클릭하면 메뉴가 나옵니다.">
+                                      Description="녹화·캡처·리플레이 버튼을 작업 표시줄에 둡니다. 한 번 클릭으로 바로 실행되고, 리플레이 버튼은 꺼져 있으면 켜고 켜져 있으면 저장합니다. 오른쪽 클릭하면 메뉴가 나옵니다. 열린 앱이 많아 작업 표시줄에 자리가 없으면 그동안은 알림 영역(^) 아이콘으로 바뀝니다.">
                             <StackPanel Orientation="Horizontal">
                                 <ComboBox x:Name="QuickPlaceCombo" Width="190" Margin="0,0,10,0" VerticalAlignment="Center"
                                           ToolTip="작업 표시줄: 알림 영역(시계 쪽 아이콘들) 바로 왼쪽 빈자리에 버튼 3개를 붙입니다.&#x0a;알림 영역 아이콘: ^ 안에 들어가는 작은 아이콘 3개로 둡니다."/>

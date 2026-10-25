@@ -7,6 +7,7 @@ namespace CustomRecorder.App.Windows;
 public partial class MainWindow
 {
     private bool _themeHooked;
+    private bool _stripNoRoom;
 
     private void ApplyQuickButtons()
     {
@@ -22,7 +23,9 @@ public partial class MainWindow
         }
 
         bool wantTaskbar = _settings.QuickButtons && _settings.QuickButtonsPlace != "tray";
-        bool wantTray = _settings.QuickButtons && _settings.QuickButtonsPlace == "tray";
+        if (!wantTaskbar) _stripNoRoom = false;
+        // No room for the taskbar buttons (many apps open): fall back to notification-area icons until there is.
+        bool wantTray = _settings.QuickButtons && (_settings.QuickButtonsPlace == "tray" || _stripNoRoom);
 
         if (wantTray && _quick == null)
         {
@@ -57,6 +60,12 @@ public partial class MainWindow
                         ReplaySave: SaveReplay,
                         OpenMain: ShowFromTray),
                     action => Dispatcher.BeginInvoke(action));
+                _strip.NoRoomChanged += noRoom =>
+                {
+                    _stripNoRoom = noRoom;
+                    CustomRecorder.Core.Util.Log.Info(noRoom ? "작업 표시줄에 자리가 없어 알림 영역 아이콘으로 표시" : "작업 표시줄 버튼으로 복귀");
+                    ApplyQuickButtons();
+                };
             }
             catch (Exception ex) { CustomRecorder.Core.Util.Log.Error("작업 표시줄 버튼 생성 오류", ex); }
         }
