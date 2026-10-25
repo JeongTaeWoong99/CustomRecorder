@@ -99,13 +99,13 @@ src/
 ## 새 버전 내보내기
 
 1. `src/CustomRecorder.App/CustomRecorder.App.csproj`의 `<Version>`을 올립니다 (예: `0.1.1`).
-2. `CHANGELOG.md` 맨 위에 `## [0.1.1] - 날짜`와 변경 내용을 적습니다.
-3. 커밋하고 push합니다.
-4. 같은 번호의 태그(`v0.1.1`)를 만들어 push합니다. GitHub Desktop: History에서 커밋 오른쪽 클릭 → Create Tag → Push.
-5. GitHub Actions가 테스트·빌드 후 Releases에 zip과 체크섬을 올립니다. 이후 각 PC의 프로그램이 업데이트를 알려 줍니다.
+2. `CHANGELOG.md` 맨 위에 `## [0.1.1] - 날짜`와 변경 내용을 적습니다. 이 내용이 릴리스 노트와 프로그램의 업데이트 안내에 그대로 나옵니다.
+3. 커밋하고 `main`에 push합니다 (GitHub Desktop: Commit → Push origin).
 
-태그에 `-beta.1`처럼 꼬리를 붙이면 미리보기(pre-release)로 올라가고, "미리보기 버전도 받기"를 켠 PC에만 나타납니다.
-태그와 csproj 버전이 다르면 빌드가 멈춥니다 (실수로 다른 번호가 배포되는 것을 막음).
+GitHub Actions가 그 버전의 릴리스가 아직 없으면 테스트·빌드한 뒤 태그 `v0.1.1`과 릴리스(zip + 체크섬)를 만듭니다.
+몇 분 뒤 각 PC의 프로그램이 업데이트를 알려 줍니다. 버전 번호를 올리지 않은 push는 릴리스를 만들지 않습니다.
+
+버전에 `-beta.1`처럼 꼬리를 붙이면(`0.2.0-beta.1`) 미리보기(pre-release)로 올라가고, "미리보기 버전도 받기"를 켠 PC에만 나타납니다.
 
 ## 의존성
 

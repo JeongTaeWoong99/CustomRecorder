@@ -1,11 +1,16 @@
-# Push a tag like v0.1.0 → test, build a self-contained exe, publish a GitHub Release
-# (CustomRecorder-v0.1.0-win-x64.zip + .sha256). The program's update check reads these releases.
-# A tag with a suffix (v0.2.0-beta.1) becomes a pre-release (offered only to "미리보기 버전도 받기").
+# Release = raise <Version> in src/CustomRecorder.App/CustomRecorder.App.csproj and push to main.
+# If there is no release for that version yet: test, build a self-contained exe, create tag v<Version> and a
+# GitHub Release (CustomRecorder-v<Version>-win-x64.zip + .sha256). The program's update check reads these.
+# A version with a suffix (0.2.0-beta.1) becomes a pre-release (offered only to "미리보기 버전도 받기").
+# Pushing a tag v<Version> by hand also works (the tag must match the csproj version).
 name: Release
 
 on:
   push:
+    branches: ['main']
+    paths: ['src/CustomRecorder.App/CustomRecorder.App.csproj', '.github/workflows/release.yml']
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,25 +25,36 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Version from tag
+      - name: Version
         id: ver
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = '${{ github.ref_name }}'
-          $ver = $tag.TrimStart('v')
-          $core = ($ver -split '[-+]')[0]
           $csproj = (Select-Xml -Path src/CustomRecorder.App/CustomRecorder.App.csproj -XPath '//Version').Node.InnerText
-          if ($csproj -ne $core) {
-            Write-Error "Tag $tag does not match <Version>$csproj</Version> in CustomRecorder.App.csproj. Set it to $core and tag again."
-            exit 1
-          }
+          if ('${{ github.ref_type }}' -eq 'tag') {
+            $ver = '${{ github.ref_name }}'.TrimStart('v')
+            if ($ver -ne $csproj) {
+              Write-Error "Tag v$ver does not match <Version>$csproj</Version> in CustomRecorder.App.csproj."
+              exit 1
+            }
+          } else { $ver = $csproj }
+          $tag = "v$ver"
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          $exists = $LASTEXITCODE -eq 0
+          if ($exists) { Write-Host "Release $tag already exists — nothing to do." }
           "version=$ver" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "skip=$(if ($exists) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
           "prerelease=$(if ($ver -match '-') { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
+          exit 0
 
       - name: Test
+        if: steps.ver.outputs.skip != 'true'
         run: dotnet test tests/CustomRecorder.Tests/CustomRecorder.Tests.csproj -c Release -p:Platform=x64
 
       - name: Publish (self-contained single exe)
+        if: steps.ver.outputs.skip != 'true'
         run: >
           dotnet publish src/CustomRecorder.App/CustomRecorder.App.csproj -c Release -p:Platform=x64
           -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true
@@ -46,9 +62,10 @@ jobs:
           -p:Version=${{ steps.ver.outputs.version }} -o publish
 
       - name: Package
+        if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
-          $name = 'CustomRecorder-${{ github.ref_name }}-win-x64'
+          $name = 'CustomRecorder-${{ steps.ver.outputs.tag }}-win-x64'
           New-Item -ItemType Directory out | Out-Null
           Compress-Archive -Path publish/CustomRecorder.exe, LICENSE -DestinationPath "out/$name.zip"
           $hash = (Get-FileHash "out/$name.zip" -Algorithm SHA256).Hash.ToLower()
@@ -56,6 +73,7 @@ jobs:
           Get-ChildItem out | Format-Table Name, Length
 
       - name: Release notes from CHANGELOG.md
+        if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
           $v = [regex]::Escape('${{ steps.ver.outputs.version }}')
@@ -74,10 +92,11 @@ jobs:
           $text | Out-File notes.md -Encoding utf8
 
       - name: Create release
+        if: steps.ver.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $flags = @()
           if ('${{ steps.ver.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
-          gh release create '${{ github.ref_name }}' (Get-ChildItem out).FullName --title 'CustomRecorder ${{ github.ref_name }}' --notes-file notes.md @flags
+          gh release create '${{ steps.ver.outputs.tag }}' (Get-ChildItem out).FullName --target '${{ github.sha }}' --title 'CustomRecorder ${{ steps.ver.outputs.tag }}' --notes-file notes.md @flags
