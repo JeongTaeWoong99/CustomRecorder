@@ -8,7 +8,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Product>CustomRecorder</Product>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Description>광고 없는 화면 녹화 프로그램</Description>
   </PropertyGroup>
   <ItemGroup>
