@@ -8,7 +8,7 @@ using Forms = System.Windows.Forms;
 namespace CustomRecorder.App.Services;
 
 /// <summary>
-/// Record / capture / replay buttons drawn directly on the taskbar, just left of the notification area
+/// Record / capture / replay / save-folder buttons drawn directly on the taskbar, just left of the notification area
 /// (and left of other taskbar widgets such as network monitors).
 /// <para>
 /// The strip is a small layered child window of the taskbar (Shell_TrayWnd). A child of another process's window shares
@@ -19,7 +19,7 @@ namespace CustomRecorder.App.Services;
 public sealed class TaskbarStrip : IDisposable
 {
     public sealed record Handlers(Action Record, Action Pause, Action Capture, Action ReplayButton,
-        Action ReplayToggle, Action ReplaySave, Action OpenMain);
+        Action ReplayToggle, Action ReplaySave, Action OpenMain, Action OpenFolder);
 
     private readonly Handlers _handlers;
     private readonly Action<Action> _toUi;
@@ -244,7 +244,8 @@ public sealed class TaskbarStrip : IDisposable
     {
         0 => _handlers.Record,
         1 => _handlers.Capture,
-        _ => _handlers.ReplayButton,
+        2 => _handlers.ReplayButton,
+        _ => _handlers.OpenFolder,
     });
 
     private void ShowMenu(int screenX, int screenY)
@@ -260,6 +261,7 @@ public sealed class TaskbarStrip : IDisposable
         AppendMenu(menu, soundOnly ? MF_GRAYED : 0u, 4, replayOn ? "리플레이 끄기" : "리플레이 켜기");
         AppendMenu(menu, replayOn ? 0u : MF_GRAYED, 5, $"최근 {length} 저장");
         AppendMenu(menu, MF_SEPARATOR, 0, null);
+        AppendMenu(menu, 0, 7, "저장 폴더 열기");
         AppendMenu(menu, 0, 6, "CustomRecorder 열기");
 
         var owner = _menuOwner!.Handle;
@@ -276,6 +278,7 @@ public sealed class TaskbarStrip : IDisposable
             4 => _handlers.ReplayToggle,
             5 => _handlers.ReplaySave,
             6 => _handlers.OpenMain,
+            7 => _handlers.OpenFolder,
             _ => null,
         };
         if (action != null) _toUi(action);
@@ -310,6 +313,9 @@ public sealed class TaskbarStrip : IDisposable
         private bool _tracking;
         private float _scale = 1f;
         private bool _light;
+
+        /// <summary>Record, capture, replay, save folder.</summary>
+        private const int ButtonCount = 4;
 
         public int Width { get; private set; } = 1;
         /// <summary>Width including the elapsed time while recording.</summary>
@@ -367,14 +373,17 @@ public sealed class TaskbarStrip : IDisposable
             if (recording && elapsed.Length > 0)
                 using (var measure = Graphics.FromHwnd(IntPtr.Zero))
                     timeWidth = (int)Math.Ceiling(measure.MeasureString(elapsed, font, PointF.Empty, StringFormat.GenericTypographic).Width) + Scale(6);
-            FullWidth = 3 * btn + 2 * gap + timeWidth;
+            FullWidth = ButtonCount * btn + (ButtonCount - 1) * gap + timeWidth;
             if (Compact) timeWidth = 0;
 
             _buttons.Clear();
             int x = 0;
             _buttons.Add(new Rectangle(x, 0, btn + timeWidth, h)); x += btn + timeWidth + gap;
-            _buttons.Add(new Rectangle(x, 0, btn, h)); x += btn + gap;
-            _buttons.Add(new Rectangle(x, 0, btn, h)); x += btn;
+            for (int i = 1; i < ButtonCount; i++)
+            {
+                _buttons.Add(new Rectangle(x, 0, btn, h));
+                x += btn + (i < ButtonCount - 1 ? gap : 0);
+            }
             Width = x;
             Height = h;
 
@@ -396,12 +405,13 @@ public sealed class TaskbarStrip : IDisposable
                         using var b = new SolidBrush(back);
                         g.FillPath(b, path);
                     }
-                    bool disabled = i > 0 && soundOnly;
+                    bool disabled = (i == 1 || i == 2) && soundOnly; // capture / replay need a screen; the folder always works
                     var kind = i switch
                     {
                         0 => recording ? QuickButtons.Kind.Stop : QuickButtons.Kind.Record,
                         1 => QuickButtons.Kind.Capture,
-                        _ => replayOn ? QuickButtons.Kind.ReplayOn : QuickButtons.Kind.ReplayOff,
+                        2 => replayOn ? QuickButtons.Kind.ReplayOn : QuickButtons.Kind.ReplayOff,
+                        _ => QuickButtons.Kind.Folder,
                     };
                     using var img = QuickButtons.Draw(kind, icon, _light);
                     int ix = r.X + (btn - icon) / 2, iy = r.Y + (r.Height - icon) / 2;
@@ -431,7 +441,7 @@ public sealed class TaskbarStrip : IDisposable
 
         // ------------------------------------------------------------ tooltip
 
-        private string[] _tips = { "", "", "" };
+        private string[] _tips = { "", "", "", "" };
         private TipWindow? _tipWindow;
         private readonly Forms.Timer _tipTimer = new() { Interval = 450 };
         private int _tipFor = -1;
@@ -443,6 +453,7 @@ public sealed class TaskbarStrip : IDisposable
                 recording ? $"녹화 중 {elapsed} — 클릭하면 중지" : "녹화 시작",
                 "화면 캡처",
                 replayOn ? $"리플레이 켜짐 — 클릭하면 최근 {length} 저장" : "리플레이 켜기",
+                "저장 폴더 열기",
             };
             if (_tipFor >= 0 && _tipWindow != null) ShowTip(_tipFor); // live text (elapsed time)
         }
