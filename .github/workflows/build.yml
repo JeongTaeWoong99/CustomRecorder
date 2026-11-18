@@ -18,3 +18,17 @@ jobs:
         run: dotnet build CustomRecorder.sln -c Release -p:Platform=x64
       - name: Test
         run: dotnet test tests/CustomRecorder.Tests/CustomRecorder.Tests.csproj -c Release -p:Platform=x64
+      # Pull requests: a ready-to-run exe to try the change before merging (Actions run → Artifacts).
+      - name: Publish test exe
+        if: github.event_name == 'pull_request'
+        run: >
+          dotnet publish src/CustomRecorder.App/CustomRecorder.App.csproj -c Release -p:Platform=x64
+          -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish
+      - name: Upload test exe
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CustomRecorder-pr${{ github.event.pull_request.number }}-win-x64
+          path: publish/CustomRecorder.exe
+          retention-days: 14
