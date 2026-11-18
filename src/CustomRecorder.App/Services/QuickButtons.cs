@@ -14,7 +14,7 @@ namespace CustomRecorder.App.Services;
 /// </summary>
 public sealed class QuickButtons : IDisposable
 {
-    public enum Kind { Record, Stop, Capture, ReplayOff, ReplayOn }
+    public enum Kind { Record, Stop, Capture, ReplayOff, ReplayOn, Folder }
 
     private static readonly Color Red = Color.FromArgb(255, 77, 94), Accent = Color.FromArgb(123, 140, 255),
         Green = Color.FromArgb(61, 214, 140);
@@ -39,7 +39,8 @@ public sealed class QuickButtons : IDisposable
     private readonly Dictionary<Kind, Icon> _icons = new();
     private readonly Forms.ToolStripMenuItem _recordItem, _replayToggleItem, _replaySaveItem;
 
-    public QuickButtons(Action toggleRecord, Action pause, Action capture, Action replayToggle, Action replaySave, Action openMain)
+    public QuickButtons(Action toggleRecord, Action pause, Action capture, Action replayToggle, Action replaySave, Action openMain,
+        Action openFolder)
     {
         BuildIcons();
 
@@ -49,12 +50,14 @@ public sealed class QuickButtons : IDisposable
         recordMenu.Items.Add(_recordItem);
         recordMenu.Items.Add("일시정지 / 다시 시작", null, (_, _) => pause());
         recordMenu.Items.Add(new Forms.ToolStripSeparator());
+        recordMenu.Items.Add("저장 폴더 열기", null, (_, _) => openFolder());
         recordMenu.Items.Add("CustomRecorder 열기", null, (_, _) => openMain());
         _record = Make(_icons[Kind.Record], "녹화 시작 (클릭)", recordMenu, toggleRecord);
 
         // Capture
         var captureMenu = new Forms.ContextMenuStrip();
         captureMenu.Items.Add("지금 캡처", null, (_, _) => capture());
+        captureMenu.Items.Add("저장 폴더 열기", null, (_, _) => openFolder());
         captureMenu.Items.Add("CustomRecorder 열기", null, (_, _) => openMain());
         _capture = Make(_icons[Kind.Capture], "화면 캡처 (클릭)", captureMenu, capture);
 
@@ -65,6 +68,7 @@ public sealed class QuickButtons : IDisposable
         replayMenu.Items.Add(_replaySaveItem);
         replayMenu.Items.Add(_replayToggleItem);
         replayMenu.Items.Add(new Forms.ToolStripSeparator());
+        replayMenu.Items.Add("저장 폴더 열기", null, (_, _) => openFolder());
         replayMenu.Items.Add("CustomRecorder 열기", null, (_, _) => openMain());
         _replay = Make(_icons[Kind.ReplayOff], "리플레이 꺼짐 — 클릭하면 켜기", replayMenu, () =>
         {
@@ -170,6 +174,9 @@ public sealed class QuickButtons : IDisposable
                 break;
             case Kind.ReplayOff:
                 Glyph(g, "", s, Dim(light));
+                break;
+            case Kind.Folder:
+                Glyph(g, "\uE838", s, Fore(light)); // FolderOpen, same glyph as the toolbar's folder button
                 break;
             case Kind.ReplayOn:
                 Glyph(g, "", s, AccentFor(light));

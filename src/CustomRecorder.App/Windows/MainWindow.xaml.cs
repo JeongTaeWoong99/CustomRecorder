@@ -220,10 +220,24 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OpenFolder_Click(object sender, RoutedEventArgs e)
+    private void OpenFolder_Click(object sender, RoutedEventArgs e) => OpenOutputFolder();
+
+    /// <summary>Opens the save folder in Explorer (toolbar, taskbar buttons, tray menus).</summary>
+    private void OpenOutputFolder()
     {
-        Directory.CreateDirectory(_settings.OutputFolder);
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{_settings.OutputFolder}\"") { UseShellExecute = true });
+        var folder = _settings.OutputFolder;
+        try
+        {
+            Directory.CreateDirectory(folder); // first run: nothing recorded yet
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            // e.g. the folder is on a drive that is no longer connected
+            Log.Warn($"저장 폴더 열기 실패 ({folder}): {ex.Message}");
+            if (_recorder == null) StatusText.Text = "저장 폴더를 열 수 없음 — 설정에서 폴더 확인";
+            if (!IsVisible || !IsActive) Flash("저장 폴더를 열 수 없음", folder);
+        }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)

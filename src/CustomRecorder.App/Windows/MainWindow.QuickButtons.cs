@@ -37,7 +37,8 @@ public partial class MainWindow
                     capture: () => Screenshot_Click(this, new RoutedEventArgs()),
                     replayToggle: () => Replay_Click(this, new RoutedEventArgs()),
                     replaySave: SaveReplay,
-                    openMain: ShowFromTray);
+                    openMain: ShowFromTray,
+                    openFolder: OpenOutputFolder);
             }
             catch (Exception ex) { CustomRecorder.Core.Util.Log.Error("빠른 버튼 생성 오류", ex); }
         }
@@ -58,7 +59,8 @@ public partial class MainWindow
                         ReplayButton: ThumbReplayAction,
                         ReplayToggle: () => Replay_Click(this, new RoutedEventArgs()),
                         ReplaySave: SaveReplay,
-                        OpenMain: ShowFromTray),
+                        OpenMain: ShowFromTray,
+                        OpenFolder: OpenOutputFolder),
                     action => Dispatcher.BeginInvoke(action));
                 _strip.NoRoomChanged += noRoom =>
                 {
